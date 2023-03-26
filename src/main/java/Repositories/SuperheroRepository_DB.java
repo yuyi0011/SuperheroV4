@@ -1,15 +1,20 @@
-package Reponsitories;
+package Repositories;
 
+import DTO.CityHeroDTO;
+import DTO.HeroCountPowerDTO;
+import Model.Superhero;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Repository;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
-@Reponsitory
+@Repository
 
-public class SuperheroReponsitory_DB {@Value("${spring.datasource.url}")
-private String db_url;
+public class SuperheroRepository_DB {
+    @Value("${spring.datasource.url}")
+    private String db_url;
 
     @Value("${spring.datasource.username}")
     private String uid;
@@ -18,202 +23,172 @@ private String db_url;
     private String pwd;
 
     private String SQL;
-    private Statement stmt;
-    private ResultSet rs;
-    private PreparedStatement ps;
     private Connection con;
+    private String searchName;
 
     public Connection connection() {
         try {
-            con = DriverManager.getConnection(db_url,uid,pwd);
+            con = DriverManager.getConnection(db_url, uid, pwd);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
         return con;
     }
 
-    public List<SuperHero> Heroes() {
-        List<SuperHero> herolist = new ArrayList<>();
-        SuperHero hero;
-        try {
-            SQL = "SELECT realname, heroname, creationyear, id FROM superhero";
-            stmt = connection().createStatement();
-            rs = stmt.executeQuery(SQL);
+    @Value("${spring.datasource.url}")
+    private String db_url;
+
+    @Value("${spring.datasource.username}")
+    private String uid;
+
+    @Value("${spring.datasource.password}")
+    private String pwd;
+
+    public List<Superhero> getSuperheroes() {
+        List<Superhero> superheroes = new ArrayList<>();
+        try (Connection con = DriverManager.getConnection(db_url, uid, pwd)) {
+            String SQL = "SELECT * FROM superhero;";
+            Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery(SQL);
             while (rs.next()) {
-                hero = new SuperHero(rs.getString("realname"), rs.getString("heroname"), rs.getInt("creationyear"), rs.getInt("id"));
-                herolist.add(hero);
+                int ID = rs.getInt("id");
+                String superheroName = rs.getString("superheroName");
+                String realName = rs.getString("realName");
+                boolean isHuman = rs.getBoolean("isHuman");
+                int creationYear = rs.getInt("creationYear");
+                double powerLevel = rs.getDouble("powerlevel");
+
+                superheroes.add(new Superhero(ID, superheroName, realName, isHuman, creationYear, powerLevel));
             }
-            return herolist;
+            return superheroes;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public List<SuperHero> speceficHero(String name) {
-        List<SuperHero> herolist = new ArrayList<>();
-        SuperHero hero;
-        try {
-            SQL = "SELECT realname, heroname, creationyear, id From superhero WHERE heroname =?";
-            ps = connection().prepareStatement(SQL);
-            ps.setString(1, name);
-            rs = ps.executeQuery();
-            while (rs.next()){
-                hero = new SuperHero(rs.getString("realname"), rs.getString("heroname"), rs.getInt("creationyear"), rs.getInt("id"));
-                herolist.add(hero);
-            }
-            return herolist;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    public Superhero getSuperhero(String superheroName) {
+        Superhero superhero1 = null;
 
-    public List<SuperPowerCount> heroesNumberOfPowers(){
-        List<SuperPowerCount> herolist = new ArrayList<>();
-        SuperPowerCount superpowercount;
-        try {
-            SQL = "SELECT heroname, realname, COUNT(superpowerid) FROM superhero LEFT JOIN superheropower ON superhero.id = superheropower.superheroid" +
-                    " GROUP BY superhero.heroname, superhero.realname";
-            stmt = connection().createStatement();
-            rs = stmt.executeQuery(SQL);
+        try (Connection con = DriverManager.getConnection(db_url, uid, pwd)) {
+            String SQL = "SELECT id, superheroName, realName, creationYear FROM superhero WHERE superheroName = ?;";
+            PreparedStatement pstmt = con.prepareStatement(SQL);
+            pstmt.setString(1, superheroName);
+            ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-                superpowercount = new SuperPowerCount(rs.getString("realname"), rs.getString("heroname"), rs.getInt("COUNT(superpowerid)"));
-                herolist.add(superpowercount);
+                int ID = rs.getInt("id");
+                String superHeroName = rs.getString("superheroName");
+                String realName = rs.getString("realName");
+                int creationYear = rs.getInt("creationYear");
+                superhero1 = new Superhero(ID, superHeroName, realName, creationYear);
+
             }
-            return herolist;
+            return superhero1;
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public List<SuperPowerCount> speceficNumberOfPowers(String name){
-        List<SuperPowerCount> herolist = new ArrayList<>();
-        SuperPowerCount superpowercount;
-        try {
-            SQL = "SELECT heroname, realname, COUNT(superpowerid) FROM superhero LEFT JOIN superheropower ON superhero.id = superheropower.superheroid WHERE heroname = ?" +
-                    " GROUP BY superhero.heroname, superhero.realname";
-            ps = connection().prepareStatement(SQL);
-            ps.setString(1, name);
-            rs = ps.executeQuery();
+    public List<Superhero> searchSuperheroes(String searchName) {
+        List<Superhero> superheroResults = new ArrayList<>();
+
+        try (Connection con = DriverManager.getConnection(db_url, uid, pwd)) {
+            String SQL = "SELECT superheroName, realName, creationYear FROM superhero WHERE superheroName = ?;";
+            PreparedStatement pstmt = con.prepareStatement(SQL);
+            pstmt.setString(1, searchName);
+            ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-                superpowercount = new SuperPowerCount(rs.getString("realname"), rs.getString("heroname"), rs.getInt("COUNT(superpowerid)"));
-                herolist.add(superpowercount);
+                String superheroName = rs.getString("superheroName");
+                String realName = rs.getString("realName");
+                int creationYear = rs.getInt("creationYear");
+                superheroResults.add(new Superhero(superheroName, realName, creationYear));
+
             }
-            return herolist;
+            return superheroResults;
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public List<SuperPower> heroesPower(){
-        List<SuperPower> herolist = new ArrayList<>();
-        try {
-            SQL = "SELECT realname, heroname, power FROM superhero LEFT JOIN superheropower ON superhero.id = superheropower.superheroid LEFT JOIN superpower " +
-                    "ON superheropower.superpowerid = superpower.id ORDER BY heroname, power";
-            stmt = connection().createStatement();
-            rs = stmt.executeQuery(SQL);
-            String currenthero = "";
-            SuperPower superPower;
-            List<String> powerlist = null;
+    public List<HeroCountPowerDTO> getSuperpowerCount(String searchName) {
+        this.searchName = searchName;
+        List<HeroCountPowerDTO> superheroResults = new ArrayList<>();
+
+        try (Connection con = DriverManager.getConnection(db_url, uid, pwd)) {
+            String SQL = "SELECT Superhero.superheroName, Superhero.realName, COUNT(Superpower.superpower) as numSuperpowers " +
+                    "FROM Superhero " +
+                    "LEFT JOIN SuperheroSuperpower ON Superhero.id = SuperheroSuperpower.superheroId " +
+                    "LEFT JOIN Superpower ON SuperheroSuperpower.superpowerId = Superpower.id " +
+                    "WHERE superheroName = ?" +
+                    "GROUP BY Superhero.id";
+            PreparedStatement pstmt = con.prepareStatement(SQL);
+            pstmt.setString(1, searchName);
+            ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-                String realname = rs.getString("realname");
-                String heroname = rs.getString("heroname");
-                String power = rs.getString("power");
-                if (heroname.equals(currenthero)){
-                    powerlist.add(power);
-                } else {
-                    powerlist = new ArrayList<>(List.of(power));
-                    superPower = new SuperPower(realname, heroname, powerlist);
-                    currenthero = heroname;
-                    herolist.add(superPower);
-                }
+                String superheroName = rs.getString("superheroName");
+                String realName = rs.getString("realName");
+                int superpowersAmount = rs.getInt("numSuperpowers");
+                superheroResults.add(new HeroCountPowerDTO(superheroName, realName, superpowersAmount));
+
             }
-            return herolist;
+            return superheroResults;
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public List<SuperPower> speceficPower(String name){
-        List<SuperPower> herolist = new ArrayList<>();
-        try {
-            SQL = "SELECT realname, heroname, power FROM superhero LEFT JOIN superheropower ON superhero.id = superheropower.superheroid LEFT JOIN superpower ON superheropower.superpowerid = superpower.id WHERE heroname=? ORDER BY heroname, power";
-            ps = connection().prepareStatement(SQL);
-            ps.setString(1,name);
-            rs = ps.executeQuery();
-            String currenthero = "";
-            SuperPower superPower;
-            List<String> powerlist = null;
+    public List<Superhero> getRealNameSuperpowers(String searchName) {
+        List<Superhero> superheroResults = new ArrayList<>();
+
+        try (Connection con = DriverManager.getConnection(db_url, uid, pwd)) {
+            String SQL = "SELECT sh.superheroName, sh.realName, GROUP_CONCAT(sp.superpower) AS superpowers " +
+                    "FROM Superhero sh " +
+                    "LEFT JOIN SuperheroSuperpower ss ON sh.id = ss.superheroId " +
+                    "LEFT JOIN Superpower sp ON ss.superpowerId = sp.id " +
+                    "WHERE sh.superheroName = ?" +
+                    "GROUP BY sh.id " +
+                    "ORDER BY sh.superheroName";
+            PreparedStatement pstmt = con.prepareStatement(SQL);
+            pstmt.setString(1, searchName);
+            ResultSet rs = pstmt.executeQuery();
             while (rs.next()) {
-                String realname = rs.getString("realname");
-                String heroname = rs.getString("heroname");
-                String power = rs.getString("power");
-                if (heroname.equals(currenthero)){
-                    powerlist.add(power);
-                } else {
-                    powerlist = new ArrayList<>(List.of(power));
-                    superPower = new SuperPower(realname,heroname,powerlist);
-                    currenthero = heroname;
-                    herolist.add(superPower);
-                }
+                String superheroName = rs.getString("superheroName");
+                String realName = rs.getString("realName");
+                String superpowers = rs.getString("superpowers");
+                superheroResults.add(new Superhero(superheroName, realName, superpowers));
+
             }
-            return herolist;
+            return superheroResults;
+
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public List<City> city (){
-        List<City> cityList = new ArrayList<>();
-        try {
-            SQL = "SELECT heroname, cityname FROM superhero, city WHERE superhero.cityid = city.id";
-            stmt = connection().createStatement();
-            rs = stmt.executeQuery(SQL);
-            String currentcity = "";
-            City city;
-            List<String> herolist = null;
-            while (rs.next()){
-                String heroname = rs.getString("heroname");
-                String cityname = rs.getString("cityname");
-                if (cityname.equals(currentcity)){
-                    herolist.add(heroname);
-                } else {
-                    herolist = new ArrayList<>(List.of(heroname));
-                    city = new City(cityname, herolist);
-                    cityList.add(city);
-                    currentcity = cityname;
-                }
-            } return cityList;
-        } catch (SQLException e){
-            throw new RuntimeException(e);
-        }
-    }
+    public List<CityHeroDTO> getHeroCity(String cityName) {
+        List<CityHeroDTO> superheroResults = new ArrayList<>();
 
-    public List<City> speceficCity (String name){
-        List<City> cityList = new ArrayList<>();
-        try {
-            SQL = "SELECT heroname, cityname FROM superhero, city WHERE superhero.cityid = city.id and cityname =?";
-            ps = connection().prepareStatement(SQL);
-            ps.setString(1,name);
-            rs = ps.executeQuery();
-            String currentcity = "";
-            City city;
-            List<String> herolist = null;
-            while (rs.next()){
-                String heroname = rs.getString("heroname");
-                String cityname = rs.getString("cityname");
-                if (cityname.equals(currentcity)){
-                    herolist.add(heroname);
-                } else {
-                    herolist = new ArrayList<>(List.of(heroname));
-                    city = new City(cityname, herolist);
-                    cityList.add(city);
-                    currentcity = cityname;
-                }
+        try (Connection con = DriverManager.getConnection(db_url, uid, pwd)) {
+            String SQL = "SELECT city.cityName, GROUP_CONCAT(superhero.superheroName) AS Superheroes " +
+                    "FROM City " +
+                    "INNER JOIN SuperheroCity ON City.cityId = SuperheroCity.cityId " +
+                    "INNER JOIN Superhero ON Superhero.id = SuperheroCity.superheroId " +
+                    "WHERE cityName = ? " +
+                    "GROUP BY city.cityName";
+            PreparedStatement pstmt = con.prepareStatement(SQL);
+            pstmt.setString(1, cityName);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                String city = rs.getString("cityName");
+                String superheroNames = rs.getString("Superheroes");
+                superheroResults.add(new CityHeroDTO(city, superheroNames));
             }
-            return cityList;
-        } catch (SQLException e){
+            return superheroResults;
+
+        } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
-
 }
